@@ -1,11 +1,9 @@
-#include "astro.hpp"
-#include "calendar.hpp"
-#include <chrono>
-#include <iostream>
-#include <cmath>
+#include "lunar/astro.hpp"
+#include "lunar/calendar.hpp"
 
 namespace lunar {
 
+namespace {
 bool is_leap_year(int yyyy) {
     return (yyyy % 4 == 0 && yyyy % 100 != 0) || (yyyy % 400 == 0);
 }
@@ -36,6 +34,9 @@ int get_leap_month_offset(int a11, double tz) {
     return i-1;
 }
 
+}
+
+
 bool is_valid(SolarDate d) {
 #if 0
     using namespace std::chrono;
@@ -58,8 +59,9 @@ LunarDate to_lunar(SolarDate d, double tz) {
     dayNumber = jdn_from_date(d);
     k = static_cast<int>((dayNumber - 2415021.076998695) / 29.530588853);
     monthStart = new_moon_day(k+1, tz);
-    if (monthStart > dayNumber) {
-        monthStart = new_moon_day(k, tz);
+    while (monthStart > dayNumber) {
+        --k;
+        monthStart = new_moon_day(k + 1, tz);
     }
     a11 = get_lunar_month11(yy, tz);
     b11 = a11;
@@ -89,12 +91,11 @@ LunarDate to_lunar(SolarDate d, double tz) {
     if (lunarMonth >= 11 && diff < 4) {
         lunarYear -= 1;
     }
-    std::cout << lunarDay << "/" << lunarMonth << "/" << lunarYear << std::endl;
     return LunarDate{lunarDay, lunarMonth, lunarYear, lunarLeap != 0};
 }
 
 std::optional<SolarDate> to_solar(LunarDate d, double tz) {
-    double k, a11, b11, off, leapOff, leapMonth, monthStart;
+    int k, a11, b11, off, leapOff, leapMonth, monthStart;
     int lunarDay = d.day, lunarMonth = d.month, lunarYear = d.year;
     bool lunarLeap = d.leap;
     if (lunarMonth < 11) {
@@ -115,13 +116,16 @@ std::optional<SolarDate> to_solar(LunarDate d, double tz) {
             leapMonth += 12;
         }
         if (lunarLeap != 0 && lunarMonth != leapMonth) {
-            // do nothing
+            return std::nullopt;
         } else if (lunarLeap != 0 || off >= leapOff) {
             off += 1;
         }
     }
-    k = std::floor(0.5 + (a11 - 2415021.076998695) / 29.530588853);
+    if (b11 - a11 <= 365 && lunarLeap) return std::nullopt;
+    k = static_cast<int>(std::floor(0.5 + (a11 - 2415021.076998695) / 29.530588853));
     monthStart = new_moon_day(k+off, tz);
+    int nextMonthStart = new_moon_day(k + off + 1, tz);
+    if (lunarDay < 1 || lunarDay > nextMonthStart - monthStart) return std::nullopt;
     return date_from_jdn(monthStart + lunarDay - 1);
 }
 }

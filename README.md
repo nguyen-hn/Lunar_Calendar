@@ -54,7 +54,7 @@ ctest --test-dir build --output-on-failure
 
     Hồ Ngọc Đức — Vietnamese Lunar Calendar Portal: https://www.xemamlich.uhm.vn/
 
-Notes on Historical vs. Astronomical Calendars
+## Notes on Historical vs. Astronomical Calendars
 
 Astronomical formulas project modern Vietnamese calendar rules across dates. Historical Vietnamese eras (such as pre-modern dynasties or regional calendar variations prior to nationwide unification) may differ from pure astronomical projections.
 

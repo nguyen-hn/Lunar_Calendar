@@ -1,9 +1,16 @@
-#include "astro.hpp"
-#include <cmath>
+#include "lunar/astro.hpp"
+#include <cstdio>
+#include <string>
 
 namespace lunar {
 
 constexpr double PI = 3.14159265358979323846;
+
+double normalize_deg(double deg) {
+    deg = std::fmod(deg, 360.0);
+    if (deg < 0.0) deg += 360.0;
+    return deg;
+}
 
 int jdn_from_date(SolarDate d) {
     int dd = d.day, mm = d.month, yy = d.year; 
@@ -26,7 +33,7 @@ SolarDate date_from_jdn(int jd) {
         c = a - static_cast<int>((b*146097)/4);
     } else {
         b = 0;
-    c = jd + 32082;
+        c = jd + 32082;
     }
     d = static_cast<int>((4*c+3)/1461);
     e = c - static_cast<int>((1461*d)/4);
@@ -64,13 +71,9 @@ int new_moon_day(int k, double tz) {
     return static_cast<int>(JdNew + 0.5 + tz/24);
 }
 
-double sun_longtitude_deg(int jdn, double tz) {
-    return 0.0;
-}
-
-int sun_sector(int jdn, double tz) {
+double sun_longitude_deg(double jd_ut) {
     double T, T2, dr, M, L0, DL, L;
-    T = (jdn - 2451545.5 - tz/24) / 36525; // Time in Julian centuries from 2000-01-01 12:00:00 GMT
+    T = (jd_ut - 2451545.0) / 36525; // Time in Julian centuries from 2000-01-01 12:00:00 GMT
     T2 = T*T;
     dr = PI/180; // degree to radian
     M = 357.52910 + 35999.05030*T - 0.0001559*T2 - 0.00000048*T*T2; // mean anomaly, degree
@@ -78,9 +81,69 @@ int sun_sector(int jdn, double tz) {
     DL = (1.914600 - 0.004817*T - 0.000014*T2)*std::sin(dr*M);
     DL = DL + (0.019993 - 0.000101*T)*std::sin(dr*2*M) + 0.000290*std::sin(dr*3*M);
     L = L0 + DL; // true longitude, degree
-    L = L*dr;
-    L = L - PI*2*(std::floor(L/(PI*2))); // Normalize to (0, 2*PI)
-    return std::floor(L / PI * 6);
+    // L = L*dr;
+    // L = L - PI*2*(std::floor(L/(PI*2))); // Normalize to (0, 2*PI)
+    L = normalize_deg(L);
+    return L;
+}
+
+int sun_sector(int jdn, double tz) {
+    return std::floor(sun_longitude_deg(jdn - 0.5 - tz/24) / 30);
+}
+
+double apparent_sun_longitude_deg(double jd) {
+    double T = (jd - 2451545.0) / 36525;
+    double T2 = T * T;
+    double L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T2;
+    double M = 357.52910 + 35999.05029 * T - 0.0001537 * T2;
+    double Mrad = M * PI/180.0;
+    double C = (1.914602 - 0.004817 * T - 0.000014 * T2) * std::sin(Mrad) + (0.019993 - 0.000101*T) * std::sin(2*Mrad) + 0.000289 * std::sin(3*Mrad);
+    double L = L0 + C;
+    double o = 125.04 - 1934.136 * T;
+    L = L - 0.00569 - 0.00478 * std::sin(o * PI / 180.0);
+    L = normalize_deg(L);
+    return L;
+}
+
+double term_instant(double target_deg, double jd_guess) {
+    double jd = jd_guess;
+    for (int i = 0; i < 6; ++i) {
+        double d = target_deg - apparent_sun_longitude_deg(jd);
+        d = std::fmod(d + 540.0, 360.0) - 180.0;
+        jd += d / 0.98565;
+        if (std::abs(d) < 1e-6) break;
+    }
+    return jd;
+}
+
+std::string jd_to_string(double jd, double tz = 7.0) {
+    jd += tz / 24.0 + 0.5;
+    int Z = static_cast<int>(std::floor(jd));
+    double F = jd - Z;
+    int A = Z;
+    if (Z >= 2299161) {
+        int alpha = static_cast<int>(std::floor((Z - 1867216.25) / 36524.25));
+        A = Z + 1 + alpha - (alpha / 4);
+    }
+    int B = A + 1524;
+    int C = static_cast<int>(std::floor((B - 122.1) / 365.25));
+    int D = static_cast<int>(std::floor(365.25 * C));
+    int E = static_cast<int>(std::floor((B - D) / 30.6001));
+
+    double day_exact = B - D - std::floor(30.6001 * E) + F;
+    int day = static_cast<int>(std::floor(day_exact));
+    int month = (E < 14) ? (E - 1) : (E - 13);
+    int year = (month > 2) ? (C - 4716) : (C - 4715);
+
+    double rem_hours = (day_exact - day) * 24.0;
+    int hour = static_cast<int>(std::floor(rem_hours));
+    double rem_mins = (rem_hours - hour) * 60.0;
+    int minute = static_cast<int>(std::floor(rem_mins));
+    int second = static_cast<int>(std::round((rem_mins - minute) * 60.0));
+
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d:%02d:%02d", year, month, day, hour, minute, second);
+    return std::string(buf);
 }
 
 } // namespace lunar
