@@ -1,67 +1,60 @@
 #include <iostream>
 #include <chrono>
-#include <sstream>
 #include <ctime>
+#include <type_traits>
+#include <charconv>
 #include <argparse/argparse.hpp>
 #include "lunar/calendar.hpp"
 #include "lunar/solar_terms.hpp"
+#include "lunar/format.hpp"
 
 namespace {
-int current_year() {
+lunar::SolarDate today() {
     const auto now = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(now);
     std::tm tm_local{};
     localtime_r(&t, &tm_local);
-    return tm_local.tm_year + 1900;
+    return lunar::SolarDate{tm_local.tm_mday, tm_local.tm_mon + 1, tm_local.tm_year + 1900};
 }
 
-void parse_date_str(const std::string& date_str) {
-    int day, month, year;
-    char sep1, sep2;
-    std::stringstream ss(date_str);
-    if (ss >> day >> sep1 >> month >> sep2 >> year && sep1 == '/' && sep2 == '/') {
-    
-    } else {
-        std::cerr << "Invalid date format\n";
-    }
-}
 
 }
 
 int main(int argc, char* argv[]) {
-    const int default_year = current_year();
+    auto current_day = today();
+    const int default_year = current_day.year;
 
     argparse::ArgumentParser program("lunar-cli", "0.1");
     program.add_description("Vietnamese Lunar Calendar CLI");
 
     auto& mode_group = program.add_mutually_exclusive_group();
 
-    program.add_argument("-t", "--today")
+    mode_group.add_argument("-t", "--today")
         .help("print today's Vietnamese lunar date")
         .default_value(false).implicit_value(true);
-    
-    program.add_argument("-s", "--solar")
+
+    mode_group.add_argument("-s", "--solar")
         .metavar("dd-mm-yyyy")
         .help("convert Gregorian (solar) date to Vietnamese's lunar date");
 
-    program.add_argument("-l", "--lunar").metavar("dd-mm-yyyy")
+    mode_group.add_argument("-l", "--lunar").metavar("dd-mm[L]-yyyy")
         .help("convert Vietnamese lunar date to Gregorian date");
-    
-    program.add_argument("-H", "--holidays")
+
+    mode_group.add_argument("-H", "--holidays")
         .help("list holidays/festivals for a given year")
         .default_value(false).implicit_value(true);
 
-    program.add_argument("--leap")
-        .help("treat the lunar month in --lunar as a leap month")
-        .default_value(false)
-        .implicit_value(true);
-    
-    program.add_argument("-S" ,"--solarterm").metavar("YEAR")
+    mode_group.add_argument("-S" ,"--solarterm").metavar("YEAR")
         .help("print solar terms for a given year (defaults to current year)")
         .scan<'i', int>()
         .default_value(default_year)
         .nargs(argparse::nargs_pattern::optional);
-    
+
+    program.add_argument("-y", "--year").metavar("YEAR")
+        .help("target year (used with --holidays)")
+        .scan<'i', int>()
+        .default_value(default_year);
+
     program.add_argument("--tz")
         .metavar("OFFSET")
         .help("timezone offset in hours (default: 7.0 for UTC+7)")
@@ -71,28 +64,55 @@ int main(int argc, char* argv[]) {
     try {
         program.parse_args(argc, argv);
         const double tz = program.get<double>("--tz");
-        const bool is_leap = program.get<bool>("--leap");
 
         if (program.is_used("--solar")) {
             const std::string solar_str = program.get<std::string>("--solar");
+            auto solar_date = lunar::parse_solar(solar_str);
+            if ( solar_date.has_value() ) {
+                auto lunar_date = lunar::to_lunar(*solar_date, tz);
+                if (lunar_date.has_value()) {
+                    std::cout << *lunar_date << std::endl;
+                } else {
+                    std::cerr << "Cannot convert to lunar date\n";
+                    return 1;
+                }
+            } else {
+                std::cerr << "Cannot convert to lunar date\n";
+                return 1;
+            }
         } else if (program.is_used("--lunar")) {
             const std::string lunar_str = program.get<std::string>("--lunar");
+            auto d = lunar::parse_lunar(lunar_str);
+            if (d.has_value()) {
+                lunar::LunarDate lunar_date = *d;
+                auto solar_date = lunar::to_solar(lunar_date, tz);
+                if (solar_date.has_value()) {
+                    std::cout << *solar_date << std::endl;
+                } else {
+                    std::cerr << "cannot convert to solar date\n";
+                    return 1;
+                }
+            } else {
+                std::cerr << "wrong format date\n";
+                return 1;
+            }
         } else if (program.is_used("--holidays")) {
             const int year = program.get<int>("--year");
         } else if (program.is_used("--solarterm")) {
             const int year = program.get<int>("--solarterm");
             auto t = lunar::solar_term(year, tz);
             for(auto d: t) {
-                std::cout << d.name << " " << d.date.day << " - " << d.date.month << " - " << d.date.year << std::endl;
+                std::cout << d << std::endl;
             }
         } else {
-            std::time_t now = std::time(nullptr);
-            std::tm* localTime = std::localtime(&now);
-            char buffer[80];
-            std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", localTime);
-            std::cout << "Current Date: " << buffer << std::endl;
-            auto l = lunar::to_lunar(lunar::SolarDate{1900 + localTime->tm_year, 1 + localTime->tm_mon, localTime->tm_mday}, tz);
-            std::cout << l.day << "/" << l.month << "/" << l.year << std::endl;
+            std::cout << "Current Date: " << lunar::to_string(current_day) << std::endl;
+            auto l = lunar::to_lunar(today(), tz);
+            if (l.has_value()) {
+                std::cout << *l << std::endl;
+            } else {
+                std::cerr << "Something is wrong...\n";
+                return 1;
+            }
         }
 
     } catch (const std::exception& err) {
