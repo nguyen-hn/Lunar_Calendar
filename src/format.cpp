@@ -44,6 +44,46 @@ std::optional<T> parse_date(std::string_view s) {
         return lunar::LunarDate{day, month, year, isLeap};
     } else {}
 }
+
+std::string zodiac_sign(const SolarDate& solar) {
+    const int m = solar.month;
+    const int d = solar.day;
+
+    if ((m == 1 && d >= 20) || (m == 2 && d <= 18)) return "Bảo Bình ♒";
+    if ((m == 2 && d >= 19) || (m == 3 && d <= 20)) return "Song Ngư ♓";
+    if ((m == 3 && d >= 21) || (m == 4 && d <= 19)) return "Bạch Dương ♈";
+    if ((m == 4 && d >= 20) || (m == 5 && d <= 20)) return "Kim Ngưu ♉";
+    if ((m == 5 && d >= 21) || (m == 6 && d <= 21)) return "Song Tử ♊";
+    if ((m == 6 && d >= 22) || (m == 7 && d <= 22)) return "Cự Giải ♋";
+    if ((m == 7 && d >= 23) || (m == 8 && d <= 22)) return "Sư Tử ♌";
+    if ((m == 8 && d >= 23) || (m == 9 && d <= 22)) return "Xử Nữ ♍";
+    if ((m == 9 && d >= 23) || (m == 10 && d <= 23)) return "Thiên Bình ♎";
+    if ((m == 10 && d >= 24) || (m == 11 && d <= 22)) return "Bọ Cạp ♏";
+    if ((m == 11 && d >= 23) || (m == 12 && d <= 21)) return "Nhân Mã ♐";
+    return "Ma Kết ♑";
+}
+
+constexpr std::array<const char*, 10> kCan = {
+    "Giáp", "Ất", "Bính", "Đinh", "Mậu",
+    "Kỷ", "Canh", "Tân", "Nhâm", "Quý"
+};
+
+constexpr std::array<const char*, 12> kChi = {
+    "Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ",
+    "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi"
+};
+
+constexpr std::array<const char*, 7> kWeekdayFull = {
+    "Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư",
+    "Thứ năm", "Thứ sáu", "Thứ bảy"
+};
+
+std::string weekday_name(const SolarDate& solar_date) {
+    int jdn = jdn_from_date(solar_date);
+    int idx = static_cast<int>(((jdn + 1) % 7 + 7) % 7);
+    return std::string{kWeekdayFull[idx]};
+}
+
 }
 
 std::string to_string(const SolarDate& solar_date) {
@@ -64,6 +104,10 @@ std::string to_string(const LunarDate& lunar_date) {
 
 std::string to_string(const SolarTerm& solar_term) {
     return std::string(solar_term.name) + ": " + to_string(solar_term.date);
+}
+
+std::string to_string(const CanChi& canchi) {
+    return std::string{kCan[canchi.can_idx]} + " " + std::string{kChi[canchi.chi_idx]};
 }
 
 std::ostream& operator<<(std::ostream& out, const SolarDate& solar_date) {
@@ -88,5 +132,24 @@ std::optional<SolarDate> parse_solar(std::string_view str) {
 std::optional<LunarDate> parse_lunar(std::string_view str) {
     return parse_date<LunarDate>(str);
 }
+
+void print_fulldate(const SolarDate& solar_date) {
+    std::cout << weekday_name(solar_date) << ", " << to_string(solar_date) << " " << zodiac_sign(solar_date) << std::endl;
+}
+
+void print_canchi(std::vector<CanChi>& canchi_arr) {
+    std::cout << "(";
+    for(auto c: canchi_arr) {
+        std::cout << to_string(c) << " ";
+    }
+    std::cout << ")" << std::endl;
+}
+
+//void print_fulldate(const LunarDate& lunar_date) { 
+//    std::cout << to_string(lunar_date) << " (" 
+//        //<< to_string(day_canchi()) << ", " 
+//        << to_string(month_canchi(lunar_date.year, lunar_date.month)) << ", "
+//        << to_string(year_canchi(lunar_date.year)) << ")" << std::endl;
+//}
 
 }

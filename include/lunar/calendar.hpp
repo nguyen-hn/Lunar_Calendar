@@ -7,6 +7,8 @@ namespace lunar {
 bool is_valid(SolarDate d);
 std::optional<LunarDate> to_lunar(SolarDate d, double tz);
 std::optional<SolarDate> to_solar(LunarDate d, double tz);
+
+
 }
 
 #endif // CALENDAR_HPP_

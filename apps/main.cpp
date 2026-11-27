@@ -71,7 +71,8 @@ int main(int argc, char* argv[]) {
             if ( solar_date.has_value() ) {
                 auto lunar_date = lunar::to_lunar(*solar_date, tz);
                 if (lunar_date.has_value()) {
-                    std::cout << *lunar_date << std::endl;
+                    print_fulldate(*solar_date);
+                    std::cout << (*lunar_date) << std::endl;
                 } else {
                     std::cerr << "Cannot convert to lunar date\n";
                     return 1;
@@ -87,7 +88,8 @@ int main(int argc, char* argv[]) {
                 lunar::LunarDate lunar_date = *d;
                 auto solar_date = lunar::to_solar(lunar_date, tz);
                 if (solar_date.has_value()) {
-                    std::cout << *solar_date << std::endl;
+                    print_fulldate(*solar_date);
+                    std::cout << (lunar_date) << std::endl;
                 } else {
                     std::cerr << "cannot convert to solar date\n";
                     return 1;
@@ -105,10 +107,11 @@ int main(int argc, char* argv[]) {
                 std::cout << d << std::endl;
             }
         } else {
-            std::cout << "Current Date: " << lunar::to_string(current_day) << std::endl;
-            auto l = lunar::to_lunar(today(), tz);
+            std::cout << "Today is ";
+            print_fulldate(current_day);
+            auto l = lunar::to_lunar(current_day, tz);
             if (l.has_value()) {
-                std::cout << *l << std::endl;
+                std::cout << (*l) << std::endl;
             } else {
                 std::cerr << "Something is wrong...\n";
                 return 1;

@@ -34,8 +34,29 @@ int get_leap_month_offset(int a11, double tz) {
     return i-1;
 }
 
+CanChi year_canchi(int lunar_year) {
+    int can_idx = ((lunar_year + 6) % 10 + 10) % 10;
+    int chi_idx = ((lunar_year + 8) % 12 + 12) % 12;
+    return CanChi{can_idx, chi_idx};
 }
 
+CanChi month_canchi(int lunar_year, int lunar_month) {
+    int chi_idx = (lunar_month + 1) % 12;
+    int year_can_idx = ((lunar_year + 6) % 10 + 10) % 10;
+    int first_month_can_idx = ((year_can_idx % 5) * 2 + 2) % 10;
+    int can_idx = (first_month_can_idx + (lunar_month - 1)) % 10;
+    return CanChi{can_idx, chi_idx};
+}
+
+CanChi day_canchi(const SolarDate& solar_date) {
+    int jdn = jdn_from_date(solar_date); 
+    int can_idx = static_cast<int>(((jdn + 9) % 10 + 10) % 10);
+    int chi_idx = static_cast<int>(((jdn + 1) % 12 + 12) % 12);
+    return CanChi{can_idx, chi_idx};
+}
+
+
+}
 
 bool is_valid(SolarDate d) {
 #if 0

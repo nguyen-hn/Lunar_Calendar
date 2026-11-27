@@ -23,6 +23,11 @@ struct LunarDate {
         return ( day == rhs.day) && (month == rhs.month) && (year == rhs.year) && (leap == rhs.leap);
     }
 };
+
+struct CanChi {
+    int can_idx, chi_idx;
+};
+
 }
 
 #endif // LUNAR_TYPES_HPP_
