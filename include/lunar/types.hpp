@@ -11,11 +11,17 @@
 namespace lunar {
 struct SolarDate {
     int day, month, year;
+    bool operator==(const SolarDate& rhs) const {
+        return ( day == rhs.day) && (month == rhs.month) && (year == rhs.year);
+    }
 };
 
 struct LunarDate {
     int day, month, year;
     bool leap;
+    bool operator==(const LunarDate& rhs) const {
+        return ( day == rhs.day) && (month == rhs.month) && (year == rhs.year) && (leap == rhs.leap);
+    }
 };
 }
 

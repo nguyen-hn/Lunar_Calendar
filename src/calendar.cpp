@@ -53,7 +53,8 @@ bool is_valid(SolarDate d) {
 #endif
 }
 
-LunarDate to_lunar(SolarDate d, double tz) {
+std::optional<LunarDate> to_lunar(SolarDate d, double tz) {
+    if (! is_valid(d) ) return std::nullopt;
     int k, dayNumber, monthStart, a11, b11, lunarDay, lunarMonth, lunarYear, lunarLeap;
     int yy = d.year;
     dayNumber = jdn_from_date(d);
